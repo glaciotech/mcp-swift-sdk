@@ -1,4 +1,5 @@
 import Foundation
+import SwiftyJsonSchema
 
 /// The Model Context Protocol (MCP) allows servers to expose tools
 /// that can be invoked by language models.
@@ -14,7 +15,7 @@ public struct Tool: Hashable, Codable, Sendable {
     /// The tool description
     public let description: String
     /// The tool input schema
-    public let inputSchema: Value?
+    public let inputSchema: JSONSchema?
 
     /// Annotations that provide display-facing and operational information for a Tool.
     ///
@@ -86,7 +87,7 @@ public struct Tool: Hashable, Codable, Sendable {
     public init(
         name: String,
         description: String,
-        inputSchema: Value? = nil,
+        inputSchema: JSONSchema? = nil,
         annotations: Annotations = nil
     ) {
         self.name = name
@@ -183,7 +184,7 @@ public struct Tool: Hashable, Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
         description = try container.decode(String.self, forKey: .description)
-        inputSchema = try container.decodeIfPresent(Value.self, forKey: .inputSchema)
+        inputSchema = try container.decodeIfPresent(JSONSchema.self, forKey: .inputSchema)
         annotations =
             try container.decodeIfPresent(Tool.Annotations.self, forKey: .annotations) ?? .init()
     }
@@ -192,9 +193,12 @@ public struct Tool: Hashable, Codable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(name, forKey: .name)
         try container.encode(description, forKey: .description)
+        
         if let schema = inputSchema {
-            try container.encode(schema, forKey: .inputSchema)
+            let encodedSchema = JsonSchemaCreator.createJSONSchema(for: schema)
+            try container.encode(encodedSchema, forKey: .inputSchema)
         }
+        
         if !annotations.isEmpty {
             try container.encode(annotations, forKey: .annotations)
         }

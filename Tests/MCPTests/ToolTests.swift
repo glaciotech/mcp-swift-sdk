@@ -1,7 +1,9 @@
 import Foundation
 import Testing
+import SwiftyJsonSchema
 
 @testable import MCP
+
 
 @Suite("Tool Tests")
 struct ToolTests {
@@ -10,9 +12,9 @@ struct ToolTests {
         let tool = Tool(
             name: "test_tool",
             description: "A test tool",
-            inputSchema: .object([
-                "param1": .string("Test parameter")
-            ])
+//            inputSchema: .object([
+//                "param1": .string("Test parameter")
+//            ])
         )
 
         #expect(tool.name == "test_tool")
@@ -88,6 +90,42 @@ struct ToolTests {
 
         #expect(decodedEmpty.isEmpty)
     }
+    
+    @Test("Test tool with defined input schema")
+    func testToolWithInputSchemeEncodingDecoding() throws {
+        
+//        .object([
+//            "location": .string("City name or coordinates"),
+//            "units": .string("Units of measurement, e.g., metric, imperial")
+//        ]
+                
+        struct WeatherToolSchema: ProducesJSONSchema, Sendable {
+            static let exampleValue: WeatherToolSchema = WeatherToolSchema(location: "Paris", units: "celcius")
+            
+            
+            @SchemaInfo(description: "City name or coordinates")
+            var location: String = ""
+            
+            @SchemaInfo(description: "Units of measurement, e.g., metric, imperial")
+            var units: String = ""
+        }
+        
+        
+        let inputSchema = SwiftyJsonSchema.JsonSchemaCreator.createJSONSchema(for: WeatherToolSchema())
+        
+        let tool = Tool(
+            name: "weather",
+            description: "Get current weather for a location",
+            inputSchema: inputSchema)
+        
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        
+        let data = try encoder.encode(tool)
+        let jsonString = String(data: data, encoding: .ascii)
+        print(jsonString)
+        
+    }
 
     @Test("Tool with annotations encoding and decoding")
     func testToolWithAnnotationsEncodingDecoding() throws {
@@ -99,9 +137,9 @@ struct ToolTests {
         let tool = Tool(
             name: "calculate",
             description: "Performs calculations",
-            inputSchema: .object([
-                "expression": .string("Mathematical expression to evaluate")
-            ]),
+//            inputSchema: .object([
+//                "expression": .string("Mathematical expression to evaluate")
+//            ]),
             annotations: annotations
         )
 
@@ -178,10 +216,10 @@ struct ToolTests {
         let tool = Tool(
             name: "test_tool",
             description: "Test tool description",
-            inputSchema: .object([
-                "param1": .string("String parameter"),
-                "param2": .int(42),
-            ])
+//            inputSchema: .object([
+//                "param1": .string("String parameter"),
+//                "param2": .int(42),
+//            ])
         )
 
         let encoder = JSONEncoder()
