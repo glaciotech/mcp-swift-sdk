@@ -864,6 +864,50 @@ let client = Client(name: "MyApp", version: "1.0.0", logger: logger)
 let transport = StdioTransport(logger: logger)
 ```
 
+## Schema Definition with SwiftyJsonSchema
+
+The MCP Swift SDK supports defining JSON schemas for tools using the SwiftyJsonSchema library, which provides a type-safe way to create JSON schemas from Swift structs.
+
+### Using ProducesJSONSchema
+
+The `ProducesJSONSchema` protocol allows you to define schemas using Swift structs with property wrappers:
+
+```swift
+import MCP
+import SwiftyJsonSchema
+
+// Define a schema for your tool input
+struct WeatherToolSchema: ProducesJSONSchema {
+    // Required: Provide an example value for schema generation
+    static let exampleValue: WeatherToolSchema = WeatherToolSchema(location: "Paris", units: "metric")
+    
+    // Use SchemaInfo to add descriptions and other schema metadata
+    @SchemaInfo(description: "City name or coordinates")
+    var location: String = ""
+    
+    @SchemaInfo(description: "Units of measurement, e.g., metric, imperial")
+    var units: String = ""
+}
+```
+
+### Registering Tools with Schema
+
+Use the `.produced(from:)` method to create a schema from your struct:
+
+```swift
+// Register a tool list handler
+await server.withMethodHandler(ListTools.self) { _ in
+    let tools = [
+        Tool(
+            name: "weather",
+            description: "Get current weather for a location",
+            inputSchema: try .produced(from: WeatherToolSchema.self)
+        )
+    ]
+    return .init(tools: tools)
+}
+```
+
 ## Additional Resources
 
 - [MCP Specification](https://modelcontextprotocol.io/specification/2025-03-26/)
