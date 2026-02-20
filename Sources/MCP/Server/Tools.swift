@@ -1,5 +1,6 @@
 import Foundation
 
+
 /// The Model Context Protocol (MCP) allows servers to expose tools
 /// that can be invoked by language models.
 /// Tools enable models to interact with external systems, such as
@@ -16,6 +17,91 @@ public struct Tool: Hashable, Codable, Sendable {
     /// The tool input schema
     public let inputSchema: Value
 
+    public let meta: ToolMeta?
+    
+    /// Metadata that provide additional data about the tool, maps to the MCP Apps protocol
+    public struct ToolMeta: Hashable, Codable, Equatable, Sendable {
+        public var ui: UI?
+        
+        public struct UI: Hashable, Codable, Equatable, Sendable {
+            public var resourceUri: String
+            public var permissions: Permissions?
+            public var csp: String?
+            
+            public struct Permissions: Hashable, Codable, Equatable, Sendable {
+                var microphone: Bool?
+                var camera: Bool?
+                
+                public init(microphone: Bool? = nil, camera: Bool? = nil) {
+                    self.microphone = microphone
+                    self.camera = camera
+                }
+                
+                public init(from decoder: any Decoder) throws {
+                    let container: KeyedDecodingContainer<Tool.ToolMeta.UI.Permissions.CodingKeys> = try decoder.container(keyedBy: Tool.ToolMeta.UI.Permissions.CodingKeys.self)
+                    self.microphone = try container.decodeIfPresent(Bool.self, forKey: Tool.ToolMeta.UI.Permissions.CodingKeys.microphone)
+                    self.camera = try container.decodeIfPresent(Bool.self, forKey: Tool.ToolMeta.UI.Permissions.CodingKeys.camera)
+                }
+                
+                public enum CodingKeys: CodingKey {
+                    case microphone
+                    case camera
+                }
+                
+                public func encode(to encoder: any Encoder) throws {
+                    var container = encoder.container(keyedBy: Tool.ToolMeta.UI.Permissions.CodingKeys.self)
+                    try container.encodeIfPresent(self.microphone, forKey: Tool.ToolMeta.UI.Permissions.CodingKeys.microphone)
+                    try container.encodeIfPresent(self.camera, forKey: Tool.ToolMeta.UI.Permissions.CodingKeys.camera)
+                }
+            }
+            
+            public init(resourceUri: String, permissions: Permissions? = nil, csp: String? = nil) {
+                self.resourceUri = resourceUri
+                self.permissions = permissions
+                self.csp = csp
+            }
+            
+            public enum CodingKeys: CodingKey {
+                case resourceUri
+                case permissions
+                case csp
+            }
+            
+            public init(from decoder: any Decoder) throws {
+                let container: KeyedDecodingContainer<Tool.ToolMeta.UI.CodingKeys> = try decoder.container(keyedBy: Tool.ToolMeta.UI.CodingKeys.self)
+                self.resourceUri = try container.decode(String.self, forKey: Tool.ToolMeta.UI.CodingKeys.resourceUri)
+                self.permissions = try container.decodeIfPresent(Tool.ToolMeta.UI.Permissions.self, forKey: Tool.ToolMeta.UI.CodingKeys.permissions)
+                self.csp = try container.decodeIfPresent(String.self, forKey: Tool.ToolMeta.UI.CodingKeys.csp)
+            }
+            
+            public func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: Tool.ToolMeta.UI.CodingKeys.self)
+                try container.encode(self.resourceUri, forKey: Tool.ToolMeta.UI.CodingKeys.resourceUri)
+                try container.encodeIfPresent(self.permissions, forKey: Tool.ToolMeta.UI.CodingKeys.permissions)
+                try container.encodeIfPresent(self.csp, forKey: Tool.ToolMeta.UI.CodingKeys.csp)
+            }
+        }
+        
+        public init(ui: UI? = nil) {
+            self.ui = ui
+        }
+        
+        enum CodingKeys: CodingKey {
+            case ui
+        }
+        
+        public init(from decoder: any Decoder) throws {
+            let container: KeyedDecodingContainer<Tool.ToolMeta.CodingKeys> = try decoder.container(keyedBy: Tool.ToolMeta.CodingKeys.self)
+            self.ui = try container.decodeIfPresent(Tool.ToolMeta.UI.self, forKey: Tool.ToolMeta.CodingKeys.ui)
+        }
+        
+        public func encode(to encoder: any Encoder) throws {
+            var container: KeyedEncodingContainer<Tool.ToolMeta.CodingKeys> = encoder.container(keyedBy: Tool.ToolMeta.CodingKeys.self)
+            try container.encodeIfPresent(self.ui, forKey: Tool.ToolMeta.CodingKeys.ui)
+        }
+    }
+    
+    
     /// Annotations that provide display-facing and operational information for a Tool.
     ///
     /// - Note: All properties in `ToolAnnotations` are **hints**.
@@ -87,12 +173,14 @@ public struct Tool: Hashable, Codable, Sendable {
         name: String,
         description: String?,
         inputSchema: Value,
-        annotations: Annotations = nil
+        annotations: Annotations = nil,
+        meta: ToolMeta? = nil
     ) {
         self.name = name
         self.description = description
         self.inputSchema = inputSchema
         self.annotations = annotations
+        self.meta = meta
     }
 
     /// Content types that can be returned by a tool
@@ -177,6 +265,7 @@ public struct Tool: Hashable, Codable, Sendable {
         case description
         case inputSchema
         case annotations
+        case meta = "_meta"
     }
 
     public init(from decoder: Decoder) throws {
@@ -184,15 +273,21 @@ public struct Tool: Hashable, Codable, Sendable {
         name = try container.decode(String.self, forKey: .name)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         inputSchema = try container.decode(Value.self, forKey: .inputSchema)
+        meta = try container.decodeIfPresent(ToolMeta.self, forKey: .meta)
         annotations =
             try container.decodeIfPresent(Tool.Annotations.self, forKey: .annotations) ?? .init()
     }
-
+    
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(name, forKey: .name)
         try container.encode(description, forKey: .description)
         try container.encode(inputSchema, forKey: .inputSchema)
+        
+        if let meta = meta {
+            try container.encode(meta, forKey: .meta)
+        }
+        
         if !annotations.isEmpty {
             try container.encode(annotations, forKey: .annotations)
         }
